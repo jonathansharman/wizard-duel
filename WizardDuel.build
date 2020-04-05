@@ -24,7 +24,7 @@
 
 	"vars": [
 		{ "name": "game_title", "value": "Wizard Duel" },
-		{ "name": "initial_scene", "value": "Level" },
+		{ "name": "initial_scene", "value": "TitleScene" },
 		{ "name": "screen_width", "value": 512 },
 		{ "name": "screen_height", "value": 256 },
 		{ "name": "use_60_fps", "value": true },
