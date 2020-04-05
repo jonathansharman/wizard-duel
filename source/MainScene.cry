@@ -44,7 +44,7 @@ function incrementString(string) {
 function choicesIndex(choices) {
 	result = 0;
 	for (i = 0; i < choices.length; ++i) {
-		result += choices[i] * N_ELEMENTS ** i;
+		result += Math.floor(choices[i] * N_ELEMENTS ** i);
 	}
 	return result;
 }
@@ -68,7 +68,8 @@ class MainScene : AbstractScene {
 		this.table = [];
 		for (i = 0; i < CHAIN_LENGTH; ++i) {
 			string = [0] * CHAIN_LENGTH;
-			for (j = 0; j < 3 ** CHAIN_LENGTH; ++j) {
+			stringCount = Math.floor(3 ** CHAIN_LENGTH);
+			for (j = 0; j < stringCount; ++j) {
 				this.table.add(string.clone() + [0]);
 				incrementString(string);
 			}
