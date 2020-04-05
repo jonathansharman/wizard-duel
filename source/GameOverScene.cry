@@ -1,6 +1,6 @@
 import Graphics2D;
 import Graphics2DText;
-import TwoCansAlpha2;
+import TwoCansAlpha4;
 
 const WIN_LOSE_FONT_SIZE = 24;
 const PRESS_SPACE_FONT_SIZE = 12;
