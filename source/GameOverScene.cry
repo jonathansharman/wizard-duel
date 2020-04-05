@@ -1,0 +1,43 @@
+import Graphics2D;
+import Graphics2DText;
+import TwoCansAlpha2;
+
+const WIN_LOSE_FONT_SIZE = 24;
+const PRESS_SPACE_FONT_SIZE = 12;
+
+class GameOverScene : AbstractScene {
+	field won;
+	field winLoseImage;
+	field pressSpaceImage;
+
+	constructor(won) : base() {
+		this.won = won;
+
+		font = FontResource.fromSystem('Arial').getRenderer().setSize(WIN_LOSE_FONT_SIZE);
+		if (this.won) {
+			font.setColor(0, 192, 0);
+			this.winLoseImage = font.render("You win! :D");
+		} else {
+			font.setColor(255, 0, 0);
+			this.winLoseImage = font.render("You lose :(");
+		}
+		font.setSize(PRESS_SPACE_FONT_SIZE);
+		this.pressSpaceImage = font.render("Press Space");
+	}
+
+	function update(inputManager, events) {
+		if (inputManager.isKeyPressed(KeyboardKey.SPACE)) {
+			this.switchScene(new MainScene());
+		}
+	}
+
+	function render() {
+		if (this.won) {
+			Graphics2D.Draw.fill(255, 255, 255);
+		} else {
+			Graphics2D.Draw.fill(0, 0, 0);
+		}
+		this.winLoseImage.draw(X_RES / 2 - this.winLoseImage.width / 2, 4 * Y_RES / 10 - this.winLoseImage.height / 2);
+		this.pressSpaceImage.draw(X_RES / 2 - this.pressSpaceImage.width / 2, 6 * Y_RES / 10 - this.pressSpaceImage.height / 2);
+	}
+}

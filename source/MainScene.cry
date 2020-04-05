@@ -1,0 +1,253 @@
+import Graphics2D;
+import Math;
+import Random;
+import TwoCansAlpha2;
+
+enum Element { FIRE, WATER, WOOD }
+
+const N_ELEMENTS = 3;
+
+const CHAIN_LENGTH = 4;
+
+const MAX_HEALTH = 40;
+const STARTING_AI_HEALTH = 30;
+
+const TURN_DURATION = 30;
+const TRAVEL_DURATION = 16;
+const ATTACK_ANIMATION_DURATION = 8;
+
+const X_RES = 512;
+const Y_RES = 256;
+
+const HEALTH_BAR_WIDTH = X_RES / 3;
+const HEALTH_BAR_HEIGHT = 20;
+
+const TIMER_BAR_HEIGHT = 20;
+
+const WIZARD_X = X_RES / 6;
+const WIZARD_Y = Y_RES / 2;
+
+const PLAN_X = WIZARD_X - 42;
+const PLAN_Y = WIZARD_Y - 42;
+
+function incrementString(string) {
+	++string[0];
+	for (i = 0; string[i] == N_ELEMENTS; ++i) {
+		string[i] = 0;
+		if (i >= string.length - 1) {
+			return;
+		}
+		++string[i + 1];
+	}
+}
+
+function choicesIndex(choices) {
+	result = 0;
+	for (i = 0; i < choices.length; ++i) {
+		result += choices[i] * N_ELEMENTS ** i;
+	}
+	return result;
+}
+
+class MainScene : AbstractScene {
+	field timer = 0;
+
+	field nRounds = 0;
+	field table;
+
+	field plan = null;
+	field playerChoices = [];
+	field playerChoice = null;
+	field aiChoice = null;
+
+	field playerHealth = MAX_HEALTH;
+	field aiHealth = STARTING_AI_HEALTH;
+
+	constructor() : base() {
+		// Fill the table with all strings in {fire, water, wood}^(chain length), plus a 0 for the count.
+		this.table = [];
+		for (i = 0; i < CHAIN_LENGTH; ++i) {
+			string = [0] * CHAIN_LENGTH;
+			for (j = 0; j < 3 ** CHAIN_LENGTH; ++j) {
+				this.table.add(string.clone() + [0]);
+				incrementString(string);
+			}
+		}
+	}
+
+	function update(inputManager, events) {
+		if (inputManager.isKeyPressed(KeyboardKey.NUM_1)) {
+			this.plan = Element.FIRE;
+		}
+		if (inputManager.isKeyPressed(KeyboardKey.NUM_2)) {
+			this.plan = Element.WATER;
+		}
+		if (inputManager.isKeyPressed(KeyboardKey.NUM_3)) {
+			this.plan = Element.WOOD;
+		}
+
+		++this.timer;
+		if (this.timer > TURN_DURATION) {
+			this.playerChoice = this.plan;
+			if (this.plan == null) {
+				// AI makes a random choice, wins by default.
+				this.aiChoice = Random.randomInt(N_ELEMENTS);
+			} else {
+				if (this.playerChoices.length < CHAIN_LENGTH) {
+					// AI makes a random choice due to insufficient information.
+					this.aiChoice = Random.randomInt(N_ELEMENTS);
+
+					this.playerChoices.add(this.playerChoice);
+				} else {
+					// AI tries to predict player's move based on past moves.
+					bestMatchingStrings = [];
+					maxOccurrences = 1;
+					for (string : this.table) {
+						matches = true;
+						for (i = 0; i < CHAIN_LENGTH - 1; ++i) {
+							if (string[i] != this.playerChoices[i + 1]) {
+								matches = false;
+								break;
+							}
+						}
+						if (matches) {
+							currentOccurrences = string[CHAIN_LENGTH];
+							if (currentOccurrences > maxOccurrences) {
+								// Replace guess list if current string is better than the current best.
+								bestMatchingStrings = [string];
+								maxOccurrences = currentOccurrences;
+							} else if (currentOccurrences == maxOccurrences) {
+								// Tied with best; add to list.
+								bestMatchingStrings.add(string);
+							}
+						}
+					}
+					if (bestMatchingStrings.length > 0) {
+						// One-up a random move among the most probable moves.
+						this.aiChoice = (bestMatchingStrings.choice()[CHAIN_LENGTH - 1] + 1) % N_ELEMENTS;
+					} else {
+						// Fall back to random choice.
+						this.aiChoice = Random.randomInt(N_ELEMENTS);
+					}
+
+					// Add current choice to the player choices list and bump out the oldest entry.
+					this.playerChoices.remove(0);
+					this.playerChoices.add(this.playerChoice);
+					// Increment table entry corresponding to current player string.
+					++this.table[choicesIndex(this.playerChoices)][CHAIN_LENGTH];
+				}
+			}
+			this.timer = 0;
+			this.plan = null;
+		}
+
+		if (this.timer == TRAVEL_DURATION) {
+			if (this.aiChoice != null) {
+				if (this.playerChoice == null) {
+					// Player didn't attack.
+					--this.playerHealth;
+				} else {
+					switch ((this.playerChoice - this.aiChoice) % N_ELEMENTS) {
+						case 0:
+							// Tie.
+							break;
+						case 1:
+							// Player wins.
+							--this.aiHealth;
+							break;
+						case 2:
+							// AI wins.
+							--this.playerHealth;
+							break;
+					}
+				}
+			}
+		}
+
+		if (this.playerHealth == 0) {
+			this.switchScene(new GameOverScene(false));
+		} else if (this.aiHealth == 0) {
+			this.switchScene(new GameOverScene(true));
+		}
+	}
+
+	function drawCentered(image, x, y) {
+		image.draw(x - image.width / 2, y - image.height / 2);
+	}
+
+	function drawBar(currentValue, maxValue, x, y, width, height, color, border = 1) {
+		Graphics2D.Draw.rectangle(x, y, width, height, 0, 0, 0);
+		Graphics2D.Draw.rectangle(x + border, y + border, currentValue * (width - 2 * border) / maxValue, height - 2 * border, color[0], color[1], color[2]);
+	}
+
+	function render() {
+		Graphics2D.Draw.fill(128, 128, 128);
+		Graphics2D.Draw.rectangle(0, 0, X_RES, Y_RES / 3, 0, 64, 128);
+
+		if (this.timer < ATTACK_ANIMATION_DURATION && this.aiChoice != null) {
+			this.drawCentered(Images.get("wiz-right-attack.png"), X_RES - WIZARD_X, WIZARD_Y);
+		} else {
+			this.drawCentered(Images.get("wiz-right-normal.png"), X_RES - WIZARD_X, WIZARD_Y);
+		}
+		if (this.timer < ATTACK_ANIMATION_DURATION && this.playerChoice != null) {
+			this.drawCentered(Images.get("wiz-left-attack.png"), WIZARD_X, WIZARD_Y);
+		} else {
+			this.drawCentered(Images.get("wiz-left-normal.png"), WIZARD_X, WIZARD_Y);
+		}
+
+		// Draw missiles in flight.
+		determiner = this.playerChoice == null ? 2 : (this.playerChoice - this.aiChoice) % N_ELEMENTS;
+		if (this.timer < TRAVEL_DURATION) {
+			if (this.playerChoice != null && (this.timer < TRAVEL_DURATION / 2 || determiner == 1)) {
+				x = ((TRAVEL_DURATION - this.timer) * WIZARD_X + this.timer * (X_RES - WIZARD_X)) / TRAVEL_DURATION;
+				switch (this.playerChoice) {
+					case Element.FIRE:
+						this.drawCentered(Images.get("fire-left.png"), x, WIZARD_Y);
+						break;
+					case Element.WATER:
+						this.drawCentered(Images.get("water-left.png"), x, WIZARD_Y);
+						break;
+					case Element.WOOD:
+						this.drawCentered(Images.get("wood-left.png"), x, WIZARD_Y);
+						break;
+				}
+			}
+			if (this.aiChoice != null && (this.timer < TRAVEL_DURATION / 2 || determiner == 2 || this.playerChoice == null)) {
+				x = (this.timer * WIZARD_X + (TRAVEL_DURATION - this.timer) * (X_RES - WIZARD_X)) / TRAVEL_DURATION;
+				switch (this.aiChoice) {
+					case Element.FIRE:
+						this.drawCentered(Images.get("fire-right.png"), x, WIZARD_Y);
+						break;
+					case Element.WATER:
+						this.drawCentered(Images.get("water-right.png"), x, WIZARD_Y);
+						break;
+					case Element.WOOD:
+						this.drawCentered(Images.get("wood-right.png"), x, WIZARD_Y);
+						break;
+				}
+			}
+		}
+
+		// Draw attack plan.
+		if (this.plan != null) {
+			switch (this.plan) {
+				case Element.FIRE:
+					Images.get("plan-fire.png").draw(PLAN_X, PLAN_Y);
+					break;
+				case Element.WATER:
+					Images.get("plan-water.png").draw(PLAN_X, PLAN_Y);
+					break;
+				case Element.WOOD:
+					Images.get("plan-wood.png").draw(PLAN_X, PLAN_Y);
+					break;
+			}
+		}
+
+		// Draw health bars.
+		this.drawBar(this.playerHealth, MAX_HEALTH, 0, 0, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT, [0, 192, 0], 2);
+		this.drawBar(this.aiHealth, MAX_HEALTH, X_RES - HEALTH_BAR_WIDTH, 0, HEALTH_BAR_WIDTH, HEALTH_BAR_HEIGHT, [255, 0, 0], 2);
+
+		// Draw turn timer.
+		this.drawBar(TURN_DURATION - this.timer - 1, TURN_DURATION, 0, Y_RES - TIMER_BAR_HEIGHT, X_RES, TIMER_BAR_HEIGHT, [0, 128, 255], 2);
+	}
+}
