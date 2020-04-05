@@ -27,8 +27,8 @@
 		{ "name": "initial_scene", "value": "TitleScene" },
 		{ "name": "screen_width", "value": 512 },
 		{ "name": "screen_height", "value": 256 },
-		{ "name": "use_60_fps", "value": true },
-		{ "name": "enable_wasd", "value": true },
+		{ "name": "use_60_fps", "value": false },
+		{ "name": "enable_wasd", "value": false },
 		{ "name": "thumbnail", "value": "assets/icon200.png" }
 	],
 
